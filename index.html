@@ -860,7 +860,22 @@
     font-size: 22px;
     margin: 0;
     letter-spacing: 0.2px;
+    display: flex;
+    align-items: center;
   }
+  .week-head-toggle {
+    cursor: pointer;
+    user-select: none;
+  }
+  .week-head-toggle:hover h2 { color: var(--red-bright); }
+  .week-chevron {
+    display: inline-block;
+    width: 16px;
+    font-size: 13px;
+    color: var(--text-faint);
+    flex-shrink: 0;
+  }
+  .week-section { margin-bottom: 4px; }
   .week-done-tag {
     font-size: 10.5px;
     font-weight: 700;
@@ -1609,17 +1624,17 @@
 
 
 <section class="tab-panel active" id="panelScoreboard" data-panel="scoreboard">
-<div class="wrap teams-section">
-    <div class="teams-head">
-      <h2>Current Teams — Fall 2026</h2>
-      <span class="teams-sub" id="teamsFilterHint">Tap a team to filter the games below</span>
-    </div>
-    <div class="team-grid" id="teamGrid"></div>
-  </div>
-
   <main class="wrap" id="scoreboard">
     <!-- weeks render here -->
   </main>
+
+  <div class="wrap teams-section">
+    <div class="teams-head">
+      <h2>Current Teams — Fall 2026</h2>
+      <span class="teams-sub" id="teamsFilterHint">Tap a team to filter the games above</span>
+    </div>
+    <div class="team-grid" id="teamGrid"></div>
+  </div>
 </section>
 
 <section class="tab-panel" id="panelStandings" data-panel="standings">
@@ -2318,6 +2333,7 @@
 
   var rosters = {};     // teamSlug -> [{name, number}]
   var teamFilter = null; // team name currently filtering the scoreboard, or null
+  var weekCollapsedState = {}; // week number -> user-chosen collapsed state (overrides the default)
 
   var session = null;   // { team: "Union High" }
   var activeGameId = null;
@@ -2381,9 +2397,7 @@
     function isWeekComplete(w) {
       return byWeek[w].every(function (g) { return g.status === 'final'; });
     }
-    var liveWeeks = weekNums.filter(function (w) { return !isWeekComplete(w); }).sort(function (a, b) { return a - b; });
-    var doneWeeks = weekNums.filter(function (w) { return isWeekComplete(w); }).sort(function (a, b) { return a - b; });
-    var weeks = liveWeeks.concat(doneWeeks);
+    var weeks = weekNums.sort(function (a, b) { return a - b; });
 
     els.scoreboard.innerHTML = '';
     if (!weeks.length) {
@@ -2393,12 +2407,21 @@
       els.scoreboard.appendChild(empty);
     }
     weeks.forEach(function (w) {
+      var section = document.createElement('div');
+      section.className = 'week-section';
+
       var head = document.createElement('div');
-      head.className = 'week-head';
+      head.className = 'week-head week-head-toggle';
       var label = (byWeek[w][0] && byWeek[w][0].weekLabel) ? byWeek[w][0].weekLabel : ('Week ' + w);
       var doneTag = isWeekComplete(w) ? '<span class="week-done-tag">Complete</span>' : '';
-      head.innerHTML = '<h2>' + escapeHtml(label) + '</h2>' + doneTag;
-      els.scoreboard.appendChild(head);
+      var defaultCollapsed = isWeekComplete(w);
+      var isCollapsed = (weekCollapsedState[w] !== undefined) ? weekCollapsedState[w] : defaultCollapsed;
+      head.innerHTML = '<h2><span class="week-chevron">' + (isCollapsed ? '\u25B8' : '\u25BE') + '</span>' + escapeHtml(label) + '</h2>' + doneTag;
+      section.appendChild(head);
+
+      var gamesWrap = document.createElement('div');
+      gamesWrap.className = 'week-games';
+      if (isCollapsed) gamesWrap.style.display = 'none';
 
       byWeek[w].slice().sort(function (a, b) {
         var pa = parseDateLabel(a.dateLabel);
@@ -2407,8 +2430,19 @@
         var kb = pb ? (pb.date + 'T' + (pb.time || '99:99')) : '9999';
         return ka < kb ? -1 : (ka > kb ? 1 : 0);
       }).forEach(function (g) {
-        els.scoreboard.appendChild(renderGame(g));
+        gamesWrap.appendChild(renderGame(g));
       });
+      section.appendChild(gamesWrap);
+
+      head.addEventListener('click', function () {
+        var nowCollapsed = gamesWrap.style.display !== 'none';
+        gamesWrap.style.display = nowCollapsed ? 'none' : '';
+        weekCollapsedState[w] = nowCollapsed;
+        var chevronEl = head.querySelector('.week-chevron');
+        if (chevronEl) chevronEl.textContent = nowCollapsed ? '\u25B8' : '\u25BE';
+      });
+
+      els.scoreboard.appendChild(section);
     });
 
     renderCalendar();
@@ -3097,7 +3131,7 @@
       badge.addEventListener('click', function () {
         teamFilter = (teamFilter === team) ? null : team;
         var hintOn = teamFilter ? ('Showing ' + teamFilter + ' \u2014 tap again to clear') : null;
-        els.teamsFilterHint.textContent = hintOn || 'Tap a team to filter the games below';
+        els.teamsFilterHint.textContent = hintOn || 'Tap a team to filter the games above';
         els.teamsFilterHintCal.textContent = hintOn || 'Tap a team to filter the events below';
         renderTeamGrid();
         render();
@@ -3393,6 +3427,13 @@
     }
     if (tab === 'standings') {
       showStandingsList();
+    }
+    if (tab === 'stats') {
+      if (els.statsModeSelect.value === 'team') {
+        renderStatsTeamContent();
+      } else {
+        renderStatsIndivContent();
+      }
     }
   }
   els.siteTabs.querySelectorAll('.site-tab').forEach(function (btn) {
