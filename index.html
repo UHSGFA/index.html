@@ -3060,6 +3060,12 @@
     var mode = els.statsModeSelect.value;
     els.statsTeamPanel.style.display = mode === 'team' ? '' : 'none';
     els.statsIndividualPanel.style.display = mode === 'individual' ? '' : 'none';
+    if (mode === 'team') {
+      renderStatsTeamContent();
+    } else {
+      renderStatsIndivPlayers();
+      renderStatsIndivContent();
+    }
   });
   els.statsTeamSelect.addEventListener('change', renderStatsTeamContent);
   els.statsIndivTeamSelect.addEventListener('change', function () {
