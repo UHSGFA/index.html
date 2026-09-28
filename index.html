@@ -1926,19 +1926,8 @@
 <div class="overlay" id="resultOverlay">
   <div class="modal modal-wide">
     <button class="coach-btn modal-close" id="resultClose" style="padding:6px 10px;">✕</button>
-    <h3 id="resultTitle">Post Result</h3>
+    <h3 id="resultTitle">Player Stats</h3>
     <p class="sub" id="resultSub"></p>
-
-    <div class="row2">
-      <div class="field">
-        <label>Your score</label>
-        <input id="scoreFor" type="number" min="0" inputmode="numeric">
-      </div>
-      <div class="field">
-        <label>Opponent score</label>
-        <input id="scoreAgainst" type="number" min="0" inputmode="numeric">
-      </div>
-    </div>
 
     <div class="stat-entry">
       <div class="stat-entry-head">
@@ -1955,7 +1944,7 @@
 
     <div class="modal-actions">
       <button class="btn" id="resultCancel">Cancel</button>
-      <button class="btn primary" id="resultSubmit">Post Score</button>
+      <button class="btn primary" id="resultSubmit">Save Stats</button>
     </div>
   </div>
 </div>
@@ -2249,8 +2238,6 @@
     resultClose: document.getElementById('resultClose'),
     resultTitle: document.getElementById('resultTitle'),
     resultSub: document.getElementById('resultSub'),
-    scoreFor: document.getElementById('scoreFor'),
-    scoreAgainst: document.getElementById('scoreAgainst'),
     playerRows: document.getElementById('playerRows'),
     addPlayerBtn: document.getElementById('addPlayerBtn'),
     playerRowTemplate: document.getElementById('playerRowTemplate'),
@@ -3199,7 +3186,8 @@
       actions.className = 'game-actions';
       var link = document.createElement('button');
       link.className = 'edit-link';
-      link.textContent = isFinal ? 'Edit result' : 'Post final score';
+      var mySideStats = (session.team === g.teamA) ? g.statsA : g.statsB;
+      link.textContent = (mySideStats && mySideStats.length) ? 'Edit player stats' : 'Add player stats';
       link.addEventListener('click', function () { openResultModal(g); });
       actions.appendChild(link);
       card.appendChild(actions);
@@ -3573,10 +3561,8 @@
     activeGameId = g.id;
     var isSelfA = session.team === g.teamA;
     var oppTeam = isSelfA ? g.teamB : g.teamA;
-    els.resultTitle.textContent = 'Post Result';
+    els.resultTitle.textContent = 'Player Stats';
     els.resultSub.textContent = session.team + ' vs ' + oppTeam + ' — Week ' + g.week;
-    els.scoreFor.value = g.status === 'final' ? (isSelfA ? g.scoreA : g.scoreB) : '';
-    els.scoreAgainst.value = g.status === 'final' ? (isSelfA ? g.scoreB : g.scoreA) : '';
 
     els.playerRows.innerHTML = '';
     var existing = (isSelfA ? g.statsA : g.statsB) || [];
@@ -3657,23 +3643,14 @@
   els.resultSubmit.addEventListener('click', function () {
     var g = games[activeGameId];
     if (!g) return;
-    var sf = parseInt(els.scoreFor.value, 10);
-    var sa = parseInt(els.scoreAgainst.value, 10);
-    if (isNaN(sf) || isNaN(sa)) {
-      showToast('Enter both scores');
-      return;
-    }
     var isSelfA = session.team === g.teamA;
-    g.scoreA = isSelfA ? sf : sa;
-    g.scoreB = isSelfA ? sa : sf;
-    g.status = 'final';
-
     var players = collectPlayerRows();
-    if (isSelfA) { g.statsA = players; } else { g.statsB = players; }
+    var key = isSelfA ? 'statsA' : 'statsB';
+    if (players.length) { g[key] = players; } else { delete g[key]; }
 
     persistGame(g);
     closeResultModal();
-    showToast('Score posted');
+    showToast('Stats saved');
     render();
   });
 
