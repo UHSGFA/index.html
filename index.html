@@ -1477,44 +1477,86 @@
     padding-top: 10px;
     margin-top: 2px;
   }
-  .stat-block-title {
+  .gs-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    margin-bottom: 10px;
+  }
+  .gs-table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+    font-size: 12px;
+  }
+  .gs-table th, .gs-table td { text-align: center; }
+  .gs-table th.gs-team {
+    text-align: left;
+    padding: 9px 10px 2px;
     font-size: 10.5px;
     font-weight: 700;
-    color: var(--text-faint);
-    text-transform: uppercase;
     letter-spacing: 0.4px;
-    margin-bottom: 6px;
+    text-transform: uppercase;
+    color: var(--text-faint);
+    position: sticky;
+    left: 0;
+    z-index: 2;
+    background: var(--bg-card);
   }
-  .stat-player {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: 10px;
-    font-size: 12.5px;
-    padding: 3px 0;
+  .gs-table th.gs-group {
+    padding: 9px 0 3px;
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
+    color: var(--text-dim);
   }
-  .stat-player .sp-name {
+  .gs-table th.gs-player-h {
+    text-align: left;
+    padding: 2px 10px 6px;
+    font-size: 10.5px;
+    font-weight: 600;
+    color: var(--text-faint);
+    border-bottom: 1px solid var(--line);
+    position: sticky;
+    left: 0;
+    z-index: 2;
+    background: var(--bg-card);
+  }
+  .gs-table th.gs-sub {
+    padding: 2px 0 6px;
+    font-size: 10.5px;
+    font-weight: 600;
+    color: var(--text-faint);
+    border-bottom: 1px solid var(--line);
+  }
+  .gs-table .gs-start { border-left: 1px solid var(--line); }
+  .gs-table td {
+    padding: 8px 0;
+    border-bottom: 1px solid var(--line);
     color: var(--text);
     font-weight: 600;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
   }
-  .sp-pos {
-    display: inline-block;
-    font-family: var(--font-body);
-    font-weight: 700;
-    font-size: 9.5px;
-    color: var(--accent2);
-    background: rgba(42,68,148,0.18);
-    border-radius: 4px;
-    padding: 1px 5px;
-    margin-left: 4px;
-    letter-spacing: 0.3px;
+  .gs-table td.gs-zero { color: var(--text-faint); font-weight: 400; }
+  .gs-table td.gs-name {
+    text-align: left;
+    padding: 8px 10px;
+    font-size: 12.5px;
+    line-height: 1.25;
+    color: var(--text);
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    background: var(--bg-card);
   }
-  .stat-player .sp-line {
+  .gs-table tbody tr:last-child td { border-bottom: none; }
+  .gs-table tr.gs-total td { background: var(--bg-elevated); border-top: 1px solid var(--line); }
+  .gs-table tr.gs-total td.gs-name { background: var(--bg-elevated); }
+  .gs-empty {
+    padding: 10px;
+    font-size: 12px;
     color: var(--text-faint);
-    text-align: right;
   }
 
   .note {
@@ -3231,40 +3273,114 @@
     block.className = 'stat-block';
 
     if (g.statsA && g.statsA.length) {
-      block.appendChild(statGroup(g.teamA, g.statsA));
+      block.appendChild(buildGameStatTable(g.teamA, g.statsA));
     }
     if (g.statsB && g.statsB.length) {
-      block.appendChild(statGroup(g.teamB, g.statsB));
+      block.appendChild(buildGameStatTable(g.teamB, g.statsB));
     }
     return block;
   }
 
-  function statGroup(teamName, players) {
+  // Stat columns shown on a game card, grouped like the paper stat sheet.
+  var GAME_STAT_GROUPS = [
+    { label: 'Rushing', fields: [
+      { key: 'rushAtt', label: 'Att', full: 'Rush attempts' },
+      { key: 'rushYds', label: 'Yds', full: 'Rush yards' },
+      { key: 'rushTD', label: 'TD', full: 'Rush touchdowns' }
+    ]},
+    { label: 'Receiving', fields: [
+      { key: 'rec', label: 'Rec', full: 'Receptions' },
+      { key: 'recYds', label: 'Yds', full: 'Receiving yards' },
+      { key: 'recTD', label: 'TD', full: 'Receiving touchdowns' }
+    ]},
+    { label: 'Passing', fields: [
+      { key: 'passAtt', label: 'Att', full: 'Pass attempts' },
+      { key: 'passCmp', label: 'Cmp', full: 'Pass completions' },
+      { key: 'passYds', label: 'Yds', full: 'Pass yards' },
+      { key: 'passTD', label: 'TD', full: 'Pass touchdowns' },
+      { key: 'passINT', label: 'INT', full: 'Interceptions thrown' }
+    ]},
+    { label: 'Defense', fields: [
+      { key: 'defINT', label: 'INT', full: 'Defensive interceptions' },
+      { key: 'flagPulls', label: 'Pull', full: 'Flag pulls' },
+      { key: 'sacks', label: 'Sck', full: 'Sacks' },
+      { key: 'defTD', label: 'TD', full: 'Defensive touchdowns' }
+    ]},
+    { label: 'Pts', fields: [
+      { key: 'pt1', label: '1-pt', full: '1-point conversions' },
+      { key: 'pt2', label: '2-pt', full: '2-point conversions' }
+    ]}
+  ];
+
+  // One team's player stats as a grouped table. Only columns with at least
+  // one non-zero value are shown; zeros display as a dash.
+  function buildGameStatTable(teamName, players) {
     var wrap = document.createElement('div');
-    wrap.style.marginBottom = '8px';
-    var title = document.createElement('div');
-    title.className = 'stat-block-title';
-    title.textContent = teamName;
-    wrap.appendChild(title);
+    wrap.className = 'gs-wrap';
+
+    var groups = GAME_STAT_GROUPS.map(function (grp) {
+      return {
+        label: grp.label,
+        fields: grp.fields.filter(function (f) {
+          return players.some(function (p) { return p[f.key]; });
+        })
+      };
+    }).filter(function (grp) { return grp.fields.length; });
+
+    var nCols = groups.reduce(function (n, grp) { return n + grp.fields.length; }, 0);
+    if (!nCols) {
+      wrap.innerHTML = '<div class="gs-empty">' + escapeHtml(teamName) + ' \u2014 no stats recorded.</div>';
+      return wrap;
+    }
+
+    var table = document.createElement('table');
+    table.className = 'gs-table';
+    table.style.minWidth = (140 + nCols * 36) + 'px';
+
+    var html = '<colgroup><col style="width:140px">';
+    for (var c = 0; c < nCols; c++) html += '<col style="width:36px">';
+    html += '</colgroup><thead><tr><th class="gs-team">' + escapeHtml(teamName) + '</th>';
+    groups.forEach(function (grp) {
+      html += '<th class="gs-group gs-start" colspan="' + grp.fields.length + '">' + grp.label + '</th>';
+    });
+    html += '</tr><tr><th class="gs-player-h">Player</th>';
+    groups.forEach(function (grp) {
+      grp.fields.forEach(function (f, i) {
+        html += '<th class="gs-sub' + (i === 0 ? ' gs-start' : '') + '" title="' + f.full + '">' + f.label + '</th>';
+      });
+    });
+    html += '</tr></thead><tbody>';
+
+    var totals = {};
+    function valueCells(getVal, tag) {
+      var out = '';
+      groups.forEach(function (grp) {
+        grp.fields.forEach(function (f, i) {
+          var v = getVal(f.key);
+          var cls = (i === 0 ? 'gs-start' : '') + (v ? '' : ' gs-zero');
+          out += '<td class="' + cls.trim() + '">' + (v ? v : '\u2013') + '</td>';
+        });
+      });
+      return out;
+    }
+
     players.forEach(function (p) {
-      var row = document.createElement('div');
-      row.className = 'stat-player';
       var nameHtml = escapeHtml(p.name || 'Player') +
         (p.position ? ' <span class="sp-pos">' + escapeHtml(p.position.toUpperCase()) + '</span>' : '');
-      row.innerHTML =
-        '<span class="sp-name">' + nameHtml + '</span>' +
-        '<span class="sp-line">' + escapeHtml(formatPlayerLine(p)) + '</span>';
-      wrap.appendChild(row);
+      html += '<tr><td class="gs-name">' + nameHtml + '</td>' +
+        valueCells(function (k) {
+          totals[k] = (totals[k] || 0) + (p[k] || 0);
+          return p[k] || 0;
+        }) + '</tr>';
     });
-    return wrap;
-  }
 
-  function formatPlayerLine(p) {
-    var parts = [];
-    STAT_FIELD_DEFS.forEach(function (f) {
-      if (p[f.key]) parts.push(p[f.key] + ' ' + f.friendly);
-    });
-    return parts.length ? parts.join(' · ') : '—';
+    html += '<tr class="gs-total"><td class="gs-name">Team total</td>' +
+      valueCells(function (k) { return totals[k] || 0; }) + '</tr>';
+    html += '</tbody>';
+
+    table.innerHTML = html;
+    wrap.appendChild(table);
+    return wrap;
   }
 
   function escapeHtml(s) {
