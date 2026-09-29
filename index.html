@@ -2666,6 +2666,7 @@
 
     return Object.keys(table).map(function (t) { return table[t]; }).sort(function (a, b) {
       if (b.w !== a.w) return b.w - a.w;
+      if (a.l !== b.l) return a.l - b.l;
       var diffA = a.pf - a.pa, diffB = b.pf - b.pa;
       if (diffB !== diffA) return diffB - diffA;
       return b.pf - a.pf;
