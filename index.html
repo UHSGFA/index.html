@@ -584,41 +584,50 @@
     gap: 0;
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
-    padding-bottom: 12px;
+    padding: 4px 4px 16px;
   }
   .bracket-col {
     display: flex;
     flex-direction: column;
     justify-content: space-around;
-    gap: 14px;
-    min-width: 200px;
-    padding: 0 14px;
+    gap: 18px;
+    min-width: 212px;
+    padding: 0 20px;
     flex-shrink: 0;
   }
   .bracket-col-title {
     font-family: var(--font-display);
     font-weight: 700;
-    font-size: 13px;
+    font-size: 12.5px;
     color: var(--text-dim);
     text-align: center;
     text-transform: uppercase;
-    letter-spacing: 0.3px;
-    margin-bottom: 6px;
+    letter-spacing: 0.6px;
+    margin-bottom: 10px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid var(--red);
   }
   .bracket-match {
     position: relative;
     background: var(--bg-card);
     border: 1px solid var(--line);
-    border-radius: 10px;
-    padding: 10px 12px;
+    border-radius: 12px;
+    padding: 0;
     font-size: 12.5px;
+    overflow: hidden;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+    transition: box-shadow .15s ease, border-color .15s ease;
+  }
+  .bracket-match:hover {
+    border-color: var(--text-faint);
+    box-shadow: 0 3px 10px rgba(0,0,0,0.08);
   }
   .bracket-match::after {
     content: '';
     position: absolute;
     top: 50%;
-    right: -14px;
-    width: 14px;
+    right: -20px;
+    width: 20px;
     height: 1px;
     background: var(--line);
   }
@@ -628,35 +637,62 @@
     align-items: center;
     justify-content: space-between;
     gap: 8px;
-    padding: 3px 0;
+    padding: 9px 12px;
+    border-left: 3px solid transparent;
+  }
+  .bracket-team + .bracket-team { border-top: 1px solid var(--line); }
+  .bracket-team.winner {
+    background: rgba(206,32,40,0.05);
+    border-left-color: var(--red);
   }
   .bracket-team.winner .bracket-team-name { color: var(--text); font-weight: 700; }
+  .bracket-team.winner .bracket-team-score { color: var(--red-bright); }
   .bracket-team:not(.winner) .bracket-team-name { color: var(--text-faint); }
   .bracket-team-name {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
+  .bracket-seed-tag {
+    font-size: 9.5px;
+    font-weight: 500;
+    color: var(--accent2);
+    text-transform: none;
+    white-space: nowrap;
+    margin-top: 1px;
+  }
   .bracket-team-score {
     font-family: var(--font-display);
     font-weight: 700;
-    font-size: 13px;
+    font-size: 13.5px;
     flex-shrink: 0;
   }
   .bracket-vs {
+    display: flex;
+    align-items: center;
     text-align: center;
     color: var(--text-faint);
-    font-size: 10px;
-    font-weight: 600;
-    padding: 2px 0;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.4px;
   }
+  .bracket-vs::before, .bracket-vs::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--line);
+  }
+  .bracket-vs span { padding: 0 8px; }
   .bracket-match-meta {
     text-align: center;
     font-size: 10px;
     color: var(--text-faint);
-    margin-top: 6px;
-    border-top: 1px dashed var(--line);
-    padding-top: 5px;
+    padding: 7px 12px;
+    background: var(--bg-elevated);
+    border-top: 1px solid var(--line);
   }
 
   .home-hero {
@@ -1659,7 +1695,7 @@
   <button class="site-tab" data-tab="standings">Standings</button>
   <button class="site-tab" data-tab="stats">Stats</button>
   <button class="site-tab" data-tab="calendar">Calendar</button>
-  <button class="site-tab" data-tab="bracket">Playoffs</button>
+  <button class="site-tab" data-tab="bracket">Projected Playoffs</button>
   <button class="site-tab" id="tabMyTeamBtn" data-tab="myteam" style="display:none;">My Team</button>
   <button class="site-tab" id="tabAdminBtn" data-tab="admin" style="display:none;">Admin</button>
 </nav>
@@ -1768,8 +1804,8 @@
 
 <section class="tab-panel" id="panelBracket" data-panel="bracket">
   <div class="wrap info-list-page">
-    <h2>Playoffs</h2>
-    <p class="teams-sub" style="display:block; margin-bottom:18px;">Updates automatically as playoff matchups and scores are entered in Admin. Seeds shown as placeholders until real seeding is set.</p>
+    <h2>Projected Playoffs</h2>
+    <p class="teams-sub" style="display:block; margin-bottom:18px;">Seed numbers are filled in live from the current Standings, so this updates automatically every time a score is posted. Once real seeding is official, Admin can overwrite any matchup with the actual teams.</p>
     <div class="bracket-wrap" id="bracketWrap"></div>
   </div>
 </section>
@@ -2561,10 +2597,24 @@
     { week: 11, title: 'Championship' }
   ];
 
+  // Turns a stored "Seed N" placeholder into the team currently sitting in
+  // that standings slot. Anything else (a real team name, "TBD", "Highest
+  // Seed from 10/26", etc.) passes through unchanged, since those can't be
+  // projected from standings alone.
+  function projectSeedName(standings, rawName) {
+    var m = /^Seed (\d+)$/.exec(rawName || '');
+    if (!m) return { name: rawName, seedTag: null };
+    var idx = parseInt(m[1], 10) - 1;
+    var row = standings[idx];
+    if (!row) return { name: rawName, seedTag: null };
+    return { name: row.team, seedTag: 'Seed ' + m[1] + ' \u00b7 ' + row.w + '-' + row.l + ' (proj.)' };
+  }
+
   function renderBracket() {
     if (!els.bracketWrap) return;
     els.bracketWrap.innerHTML = '';
     var anyPlayoffGames = false;
+    var standings = computeStandings();
 
     BRACKET_ROUNDS.forEach(function (round) {
       var roundGames = Object.keys(games)
@@ -2594,23 +2644,28 @@
         var match = document.createElement('div');
         match.className = 'bracket-match';
 
+        var projA = projectSeedName(standings, g.teamA);
+        var projB = projectSeedName(standings, g.teamB);
+
         var rowA = document.createElement('div');
         rowA.className = 'bracket-team' + (aWins ? ' winner' : '');
         rowA.innerHTML =
-          '<span class="bracket-team-name">' + escapeHtml(g.teamA) + '</span>' +
+          '<span class="bracket-team-name">' + escapeHtml(projA.name) +
+          (projA.seedTag ? '<span class="bracket-seed-tag">' + escapeHtml(projA.seedTag) + '</span>' : '') + '</span>' +
           (isFinal ? '<span class="bracket-team-score">' + g.scoreA + '</span>' : '');
 
         var rowB = document.createElement('div');
         rowB.className = 'bracket-team' + (bWins ? ' winner' : '');
         rowB.innerHTML =
-          '<span class="bracket-team-name">' + escapeHtml(g.teamB) + '</span>' +
+          '<span class="bracket-team-name">' + escapeHtml(projB.name) +
+          (projB.seedTag ? '<span class="bracket-seed-tag">' + escapeHtml(projB.seedTag) + '</span>' : '') + '</span>' +
           (isFinal ? '<span class="bracket-team-score">' + g.scoreB + '</span>' : '');
 
         match.appendChild(rowA);
         if (!isFinal) {
           var vs = document.createElement('div');
           vs.className = 'bracket-vs';
-          vs.textContent = 'vs';
+          vs.innerHTML = '<span>VS</span>';
           match.appendChild(vs);
         }
         match.appendChild(rowB);
