@@ -368,6 +368,7 @@
     transition: background-color .12s ease;
   }
   .standings-table tbody tr:hover { background: var(--bg-card); }
+  .standings-table td.st-rank, .standings-table th.st-rank { width: 28px; color: var(--text-dim, #8a94a6); font-weight: 700; }
   .standings-table td.st-team {
     text-align: left;
     font-weight: 600;
@@ -1727,12 +1728,14 @@
         <table class="standings-table">
           <thead>
             <tr>
+              <th class="st-rank">#</th>
               <th class="st-team">Team</th>
               <th>W</th>
               <th>L</th>
               <th class="st-wide">PF</th>
               <th class="st-wide">PA</th>
               <th class="st-wide">Diff</th>
+              <th title="Combined record of opponents played (excluding games against this team)">Opp</th>
             </tr>
           </thead>
           <tbody id="standingsBody"></tbody>
@@ -2705,9 +2708,11 @@
     var table = {};
     TEAMS.forEach(function (t) { table[t] = { team: t, w: 0, l: 0, t_: 0, pf: 0, pa: 0 }; });
 
+    var finals = [];
     Object.keys(games).forEach(function (id) {
       var g = games[id];
       if (g.status !== 'final') return;
+      finals.push(g);
       [g.teamA, g.teamB].forEach(function (t) {
         if (!table[t]) table[t] = { team: t, w: 0, l: 0, t_: 0, pf: 0, pa: 0 };
       });
@@ -2717,6 +2722,15 @@
       if (g.scoreA > g.scoreB) { rowA.w++; rowB.l++; }
       else if (g.scoreB > g.scoreA) { rowB.w++; rowA.l++; }
       else { rowA.t_++; rowB.t_++; }
+    });
+
+    // Combined opponent record, excluding each opponent's game against this team
+    Object.keys(table).forEach(function (t) { table[t].oppW = 0; table[t].oppL = 0; });
+    finals.forEach(function (g) {
+      var A = table[g.teamA], B = table[g.teamB];
+      var aWon = g.scoreA > g.scoreB, bWon = g.scoreB > g.scoreA;
+      A.oppW += B.w - (bWon ? 1 : 0); A.oppL += B.l - (aWon ? 1 : 0);
+      B.oppW += A.w - (aWon ? 1 : 0); B.oppL += A.l - (bWon ? 1 : 0);
     });
 
     return Object.keys(table).map(function (t) { return table[t]; }).sort(function (a, b) {
@@ -2781,18 +2795,20 @@
     if (!els.standingsBody) return;
     var rows = computeStandings();
     els.standingsBody.innerHTML = '';
-    rows.forEach(function (r) {
+    rows.forEach(function (r, idx) {
       var tr = document.createElement('tr');
       var diff = r.pf - r.pa;
       var diffClass = diff > 0 ? 'st-diff-pos' : (diff < 0 ? 'st-diff-neg' : '');
       var record = r.w + '-' + r.l + (r.t_ ? ('-' + r.t_) : '');
       tr.innerHTML =
+        '<td class="st-rank">' + (idx + 1) + '</td>' +
         '<td class="st-team">' + escapeHtml(r.team) + '</td>' +
         '<td>' + r.w + '</td>' +
         '<td>' + r.l + '</td>' +
         '<td class="st-wide">' + r.pf + '</td>' +
         '<td class="st-wide">' + r.pa + '</td>' +
-        '<td class="st-wide ' + diffClass + '">' + (diff > 0 ? '+' : '') + diff + '</td>';
+        '<td class="st-wide ' + diffClass + '">' + (diff > 0 ? '+' : '') + diff + '</td>' +
+        '<td>' + r.oppW + '-' + r.oppL + '</td>';
       tr.addEventListener('click', function () { showTeamDetail(r.team); });
       els.standingsBody.appendChild(tr);
     });
