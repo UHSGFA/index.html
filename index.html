@@ -1003,6 +1003,13 @@
     overflow: hidden;
     text-overflow: ellipsis;
   }
+  .team-row .team-record {
+    flex-shrink: 0;
+    font-size: 12.5px;
+    font-weight: 500;
+    color: var(--text-faint);
+    white-space: nowrap;
+  }
   .team-row .score {
     font-family: var(--font-display);
     font-weight: 700;
@@ -2453,7 +2460,12 @@
     setTimeout(function () { els.toast.classList.remove('show'); }, 2200);
   }
 
+  var recordMap = {};
   function render() {
+    recordMap = {};
+    computeStandings().forEach(function (r) {
+      recordMap[r.team] = r.w + '-' + r.l + (r.t_ ? ('-' + r.t_) : '');
+    });
     var byWeek = {};
     Object.keys(games).forEach(function (id) {
       var g = games[id];
@@ -3334,7 +3346,8 @@
       logoHtml = '<span class="trow-logo trow-logo-fallback" style="background:' + bg + '">' + escapeHtml(initials(name)) + '</span>';
     }
 
-    var nameSpan = '<span class="team-name-wrap">' + logoHtml + '<span class="team-name">' + escapeHtml(name) + '</span></span>';
+    var nameSpan = '<span class="team-name-wrap">' + logoHtml + '<span class="team-name">' + escapeHtml(name) + '</span>' +
+      (recordMap[name] ? '<span class="team-record">(' + recordMap[name] + ')</span>' : '') + '</span>';
     var scoreSpan = '<span class="score">' + (score === null ? 'TBD' : score) + '</span>';
     row.innerHTML = nameSpan + scoreSpan;
     return row;
