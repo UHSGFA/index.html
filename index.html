@@ -581,21 +581,41 @@
 
   /* ---------- Playoff bracket ---------- */
   .bracket-wrap {
-    display: flex;
-    gap: 0;
+    width: 100vw;
+    margin-left: calc(50% - 50vw);
+    box-sizing: border-box;
+    padding-left: 16px; padding-right: 16px;
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
     padding: 4px 4px 16px;
   }
-  .bracket-col {
-    display: flex;
-    flex-direction: column;
-    justify-content: space-around;
-    gap: 18px;
-    min-width: 212px;
-    padding: 0 20px;
-    flex-shrink: 0;
-  }
+  .br { display: flex; justify-content: center; min-width: 1660px; height: 860px; }
+  .br-half { display: flex; flex: none; }
+  .br-col { display: flex; flex-direction: column; width: 156px; padding: 0 12px; }
+  .br-fin { width: 190px; }
+  .br-body { flex: 1; display: flex; flex-direction: column; justify-content: space-around; }
+  .br-pair { flex: 1; display: flex; flex-direction: column; justify-content: space-around; position: relative; }
+  .br-slot { position: relative; }
+  .bracket-match.placeholder { opacity: .65; }
+  .br-fin .bracket-match { border-color: var(--red); box-shadow: 0 2px 10px rgba(206,32,40,.15); }
+  /* connectors */
+  .br-slot::before, .br-slot::after { content: ""; position: absolute; top: 50%; width: 12px; border-top: 2px solid var(--line); }
+  .br-left .br-col:not(:last-child) .br-slot::after { right: -12px; }
+  .br-left .br-col:not(:first-child) .br-slot::before { left: -12px; }
+  .br-left .br-col:first-child .br-slot::before, .br-left .br-col:last-child .br-slot::after { }
+  .br-left .br-col:first-child .br-slot::before { display: none; }
+  .br-left .br-col:last-child .br-slot::after { right: -12px; }
+  .br-right .br-col:not(:first-child) .br-slot::before { left: -12px; }
+  .br-right .br-col:not(:last-child) .br-slot::after { right: -12px; }
+  .br-right .br-col:first-child .br-slot::before { left: -12px; }
+  .br-right .br-col:last-child .br-slot::after { display: none; }
+  .br-right .br-col:first-child .br-slot::after { display: none; }
+  .br-left .br-col:last-child .br-slot::before { left: -12px; }
+  .br-left .br-col:last-child .br-slot::after { right: -12px; }
+  .br-fin .br-slot::before { left: -12px; }
+  .br-fin .br-slot::after { right: -12px; }
+  .br-left .br-col:not(:last-child) .br-pair:has(> .br-slot:nth-child(2))::after { content: ""; position: absolute; right: -12px; top: 25%; bottom: 25%; border-right: 2px solid var(--line); }
+  .br-right .br-col:not(:first-child) .br-pair:has(> .br-slot:nth-child(2))::after { content: ""; position: absolute; left: -12px; top: 25%; bottom: 25%; border-left: 2px solid var(--line); }
   .bracket-col-title {
     font-family: var(--font-display);
     font-weight: 700;
@@ -623,16 +643,6 @@
     border-color: var(--text-faint);
     box-shadow: 0 3px 10px rgba(0,0,0,0.08);
   }
-  .bracket-match::after {
-    content: '';
-    position: absolute;
-    top: 50%;
-    right: -20px;
-    width: 20px;
-    height: 1px;
-    background: var(--line);
-  }
-  .bracket-col:last-child .bracket-match::after { display: none; }
   .bracket-team {
     display: flex;
     align-items: center;
@@ -665,7 +675,7 @@
     display: flex;
     flex-direction: column;
     min-width: 0;
-    white-space: nowrap;
+    white-space: normal;
     overflow: hidden;
     text-overflow: ellipsis;
   }
@@ -1742,6 +1752,7 @@
       <div class="teams-head">
         <h2>Standings</h2>
         <span class="teams-sub">Live — updates as coaches post results. Tap a team for player stats.</span>
+        <span class="teams-sub" style="display:block;margin-top:4px;"><strong>Tiebreaker:</strong> Point differential</span>
       </div>
       <div class="standings-table-wrap">
         <table class="standings-table">
@@ -2650,83 +2661,146 @@
     return out;
   }
 
+  function bracketSortKey(g) {
+    var pa = parseDateLabel(g.dateLabel);
+    return pa ? (pa.date + 'T' + (pa.time || '99:99')) : '9999';
+  }
+
+  function bracketSeedKey(g) {
+    var nums = [];
+    [g.teamA, g.teamB].forEach(function (n) {
+      var m = /^Seed (\d+)$/.exec(n || '');
+      if (m) nums.push(parseInt(m[1], 10));
+    });
+    return nums.length ? Math.min.apply(null, nums) : null;
+  }
+
+  function buildBracketMatch(g, standings) {
+    var match = document.createElement('div');
+    match.className = 'bracket-match' + (g ? '' : ' placeholder');
+    var isFinal = !!g && g.status === 'final';
+    var aWins = isFinal && g.scoreA > g.scoreB;
+    var bWins = isFinal && g.scoreB > g.scoreA;
+    var projA = g ? projectSeedName(standings, g.teamA) : { name: 'TBD', seedTag: null };
+    var projB = g ? projectSeedName(standings, g.teamB) : { name: 'TBD', seedTag: null };
+
+    function teamRowEl(proj, wins, score) {
+      var row = document.createElement('div');
+      row.className = 'bracket-team' + (wins ? ' winner' : '');
+      row.innerHTML =
+        '<span class="bracket-team-name">' + escapeHtml(proj.name) +
+        (proj.seedTag ? '<span class="bracket-seed-tag">' + escapeHtml(proj.seedTag) + '</span>' : '') + '</span>' +
+        (isFinal ? '<span class="bracket-team-score">' + score + '</span>' : '');
+      return row;
+    }
+
+    match.appendChild(teamRowEl(projA, aWins, g ? g.scoreA : ''));
+    if (!isFinal) {
+      var vs = document.createElement('div');
+      vs.className = 'bracket-vs';
+      vs.innerHTML = '<span>VS</span>';
+      match.appendChild(vs);
+    }
+    match.appendChild(teamRowEl(projB, bWins, g ? g.scoreB : ''));
+
+    var meta = document.createElement('div');
+    meta.className = 'bracket-match-meta';
+    meta.textContent = g ? bracketMetaLabel(g) : 'Date TBD';
+    match.appendChild(meta);
+    return match;
+  }
+
+  function buildBracketCol(title, matches, cls) {
+    var col = document.createElement('div');
+    col.className = 'br-col ' + (cls || '');
+    var h = document.createElement('div');
+    h.className = 'bracket-col-title';
+    h.textContent = title;
+    col.appendChild(h);
+    var body = document.createElement('div');
+    body.className = 'br-body';
+    for (var i = 0; i < matches.length; i += 2) {
+      var pair = document.createElement('div');
+      pair.className = 'br-pair';
+      matches.slice(i, i + 2).forEach(function (m) {
+        var slot = document.createElement('div');
+        slot.className = 'br-slot';
+        slot.appendChild(m);
+        pair.appendChild(slot);
+      });
+      body.appendChild(pair);
+    }
+    col.appendChild(body);
+    return col;
+  }
+
   function renderBracket() {
     if (!els.bracketWrap) return;
     els.bracketWrap.innerHTML = '';
-    var anyPlayoffGames = false;
     var standings = computeStandings();
-
-    BRACKET_ROUNDS.forEach(function (round) {
-      var roundGames = Object.keys(games)
-        .map(function (id) { return games[id]; })
-        .filter(function (g) { return g.week === round.week; })
-        .sort(function (a, b) {
-          var pa = parseDateLabel(a.dateLabel), pb = parseDateLabel(b.dateLabel);
-          var ka = pa ? (pa.date + 'T' + (pa.time || '99:99')) : '9999';
-          var kb = pb ? (pb.date + 'T' + (pb.time || '99:99')) : '9999';
-          return ka < kb ? -1 : (ka > kb ? 1 : 0);
-        });
-      if (!roundGames.length) return;
-      anyPlayoffGames = true;
-
-      var col = document.createElement('div');
-      col.className = 'bracket-col';
-      var title = document.createElement('div');
-      title.className = 'bracket-col-title';
-      title.textContent = round.title;
-      col.appendChild(title);
-
-      roundGames.forEach(function (g) {
-        var isFinal = g.status === 'final';
-        var aWins = isFinal && g.scoreA > g.scoreB;
-        var bWins = isFinal && g.scoreB > g.scoreA;
-
-        var match = document.createElement('div');
-        match.className = 'bracket-match';
-
-        var projA = projectSeedName(standings, g.teamA);
-        var projB = projectSeedName(standings, g.teamB);
-
-        var rowA = document.createElement('div');
-        rowA.className = 'bracket-team' + (aWins ? ' winner' : '');
-        rowA.innerHTML =
-          '<span class="bracket-team-name">' + escapeHtml(projA.name) +
-          (projA.seedTag ? '<span class="bracket-seed-tag">' + escapeHtml(projA.seedTag) + '</span>' : '') + '</span>' +
-          (isFinal ? '<span class="bracket-team-score">' + g.scoreA + '</span>' : '');
-
-        var rowB = document.createElement('div');
-        rowB.className = 'bracket-team' + (bWins ? ' winner' : '');
-        rowB.innerHTML =
-          '<span class="bracket-team-name">' + escapeHtml(projB.name) +
-          (projB.seedTag ? '<span class="bracket-seed-tag">' + escapeHtml(projB.seedTag) + '</span>' : '') + '</span>' +
-          (isFinal ? '<span class="bracket-team-score">' + g.scoreB + '</span>' : '');
-
-        match.appendChild(rowA);
-        if (!isFinal) {
-          var vs = document.createElement('div');
-          vs.className = 'bracket-vs';
-          vs.innerHTML = '<span>VS</span>';
-          match.appendChild(vs);
-        }
-        match.appendChild(rowB);
-
-        var meta = document.createElement('div');
-        meta.className = 'bracket-match-meta';
-        meta.textContent = bracketMetaLabel(g);
-        match.appendChild(meta);
-
-        col.appendChild(match);
-      });
-
-      els.bracketWrap.appendChild(col);
+    var byWeek = {};
+    var any = false;
+    Object.keys(games).forEach(function (id) {
+      var g = games[id];
+      if (g.week >= 7 && g.week <= 11) { (byWeek[g.week] = byWeek[g.week] || []).push(g); any = true; }
     });
-
-    if (!anyPlayoffGames) {
+    if (!any) {
       var empty = document.createElement('div');
       empty.className = 'empty';
       empty.textContent = 'No playoff matchups scheduled yet.';
       els.bracketWrap.appendChild(empty);
+      return;
     }
+    Object.keys(byWeek).forEach(function (w) {
+      byWeek[w].sort(function (a, b) { var ka = bracketSortKey(a), kb = bracketSortKey(b); return ka < kb ? -1 : (ka > kb ? 1 : 0); });
+    });
+
+    // Split each round into a left-side list and a right-side list (as slot arrays).
+    function splitSimple(list, perHalf) {
+      var n = list.length;
+      var leftN = Math.ceil(n / 2);
+      var left = list.slice(0, leftN), right = list.slice(leftN);
+      while (left.length < perHalf) left.push(null);
+      while (right.length < perHalf) right.push(null);
+      return { left: left, right: right };
+    }
+    function splitSeeds(list) {
+      var LEFT = [1, 8, 5, 4], RIGHT = [2, 7, 6, 3];
+      var order = LEFT.concat(RIGHT);
+      var slots = order.map(function () { return null; });
+      var rest = [];
+      list.forEach(function (g) {
+        var k = bracketSeedKey(g), pos = order.indexOf(k);
+        if (pos > -1 && !slots[pos]) slots[pos] = g; else rest.push(g);
+      });
+      for (var i = 0; i < slots.length && rest.length; i++) if (!slots[i]) slots[i] = rest.shift();
+      return { left: slots.slice(0, 4), right: slots.slice(4) };
+    }
+
+    var r1 = splitSimple(byWeek[7] || [], 1);
+    var r16 = splitSeeds(byWeek[8] || []);
+    var qf = splitSimple(byWeek[9] || [], 2);
+    var sf = splitSimple(byWeek[10] || [], 1);
+    var fin = (byWeek[11] || [])[0] || null;
+
+    function ms(list) { return list.map(function (g) { return buildBracketMatch(g, standings); }); }
+
+    var wrap = document.createElement('div');
+    wrap.className = 'br';
+    var left = document.createElement('div'); left.className = 'br-half br-left';
+    var right = document.createElement('div'); right.className = 'br-half br-right';
+    left.appendChild(buildBracketCol('First Round', ms(r1.left), 'br-r1'));
+    left.appendChild(buildBracketCol('Round of 16', ms(r16.left)));
+    left.appendChild(buildBracketCol('Quarterfinals', ms(qf.left)));
+    left.appendChild(buildBracketCol('Semifinals', ms(sf.left)));
+    right.appendChild(buildBracketCol('Semifinals', ms(sf.right)));
+    right.appendChild(buildBracketCol('Quarterfinals', ms(qf.right)));
+    right.appendChild(buildBracketCol('Round of 16', ms(r16.right)));
+    right.appendChild(buildBracketCol('First Round', ms(r1.right), 'br-r1'));
+    var finCol = buildBracketCol('Championship', ms([fin]), 'br-fin');
+
+    wrap.appendChild(left); wrap.appendChild(finCol); wrap.appendChild(right);
+    els.bracketWrap.appendChild(wrap);
   }
 
   // ---------- Standings & stats ----------
