@@ -649,6 +649,18 @@
   .bracket-team.winner .bracket-team-name { color: var(--text); font-weight: 700; }
   .bracket-team.winner .bracket-team-score { color: var(--red-bright); }
   .bracket-team:not(.winner) .bracket-team-name { color: var(--text-faint); }
+  .proj-banner {
+    background: var(--red-bright);
+    color: #fff;
+    text-align: center;
+    font-family: var(--font-display);
+    font-weight: 700;
+    letter-spacing: 1px;
+    font-size: 15px;
+    padding: 12px 16px;
+    border-radius: 8px;
+    margin-bottom: 18px;
+  }
   .bracket-team-name {
     display: flex;
     flex-direction: column;
@@ -1814,6 +1826,7 @@
 
 <section class="tab-panel" id="panelBracket" data-panel="bracket">
   <div class="wrap info-list-page">
+    <div class="proj-banner">PROJECTED PLAYOFFS, NOT THE REAL PLAYOFFS YET</div>
     <h2>Projected Playoffs</h2>
     <p class="teams-sub" style="display:block; margin-bottom:18px;">Seed numbers are filled in live from the current Standings, so this updates automatically every time a score is posted.</p>
     <div class="bracket-wrap" id="bracketWrap"></div>
@@ -2625,6 +2638,18 @@
     return { name: row.team, seedTag: 'Seed ' + m[1] + ' \u00b7 ' + row.w + '-' + row.l + ' (proj.)' };
   }
 
+  // Bracket shows date + venue, but the time stays "Time TBD" until an admin
+  // confirms it (saving a playoff game with a time sets timeConfirmed).
+  function bracketMetaLabel(g) {
+    if (g.timeConfirmed) return g.dateLabel || 'Date TBD';
+    var p = parseDateLabel(g.dateLabel);
+    if (!p) return g.dateLabel || 'Date TBD';
+    var d = p.date.split('-');
+    var out = parseInt(d[1], 10) + '/' + parseInt(d[2], 10) + ' @ Time TBD';
+    if (p.venue) out += ' / ' + p.venue;
+    return out;
+  }
+
   function renderBracket() {
     if (!els.bracketWrap) return;
     els.bracketWrap.innerHTML = '';
@@ -2687,7 +2712,7 @@
 
         var meta = document.createElement('div');
         meta.className = 'bracket-match-meta';
-        meta.textContent = g.dateLabel || 'Date TBD';
+        meta.textContent = bracketMetaLabel(g);
         match.appendChild(meta);
 
         col.appendChild(match);
@@ -4112,13 +4137,21 @@
     if (!teamA || !teamB) { showToast('Enter both team names'); return; }
     if (!week || week < 1) { showToast('Pick a week'); return; }
     if (teamA === teamB) { showToast('Team A and Team B must be different'); return; }
-    if (!date || !time) { showToast('Set both a date and a time'); return; }
+    var isPlayoff = week >= 7;
+    if (!date || (!time && !isPlayoff)) { showToast(isPlayoff ? 'Set a date' : 'Set both a date and a time'); return; }
     if ((scoreAraw === '') !== (scoreBraw === '')) {
       showToast('Enter both scores, or leave both blank');
       return;
     }
 
-    var dateLabel = formatDateLabel(date, time, venue);
+    var dateLabel;
+    if (time) {
+      dateLabel = formatDateLabel(date, time, venue);
+    } else {
+      var dp = date.split('-');
+      dateLabel = parseInt(dp[1], 10) + '/' + parseInt(dp[2], 10) + ' @ TBD' + (venue ? ' / ' + venue : '');
+    }
+    var timeConfirmed = isPlayoff && !!time;
     var hasScores = scoreAraw !== '' && scoreBraw !== '';
     var scoreA = hasScores ? parseInt(scoreAraw, 10) : null;
     var scoreB = hasScores ? parseInt(scoreBraw, 10) : null;
@@ -4133,6 +4166,7 @@
       existing.teamA = teamA;
       existing.teamB = teamB;
       existing.dateLabel = dateLabel;
+      if (timeConfirmed) { existing.timeConfirmed = true; } else { delete existing.timeConfirmed; }
       if (hasScores) {
         existing.status = 'final';
         existing.scoreA = scoreA;
@@ -4150,6 +4184,7 @@
       var id = 'g' + Date.now();
       var newGame = { id: id, week: week, teamA: teamA, teamB: teamB, dateLabel: dateLabel, status: hasScores ? 'final' : 'scheduled' };
       if (weekLabel) newGame.weekLabel = weekLabel;
+      if (timeConfirmed) newGame.timeConfirmed = true;
       if (hasScores) { newGame.scoreA = scoreA; newGame.scoreB = scoreB; }
       if (statsA.length) newGame.statsA = statsA;
       if (statsB.length) newGame.statsB = statsB;
@@ -4178,7 +4213,7 @@
     els.adminTeamB.value = g.teamB;
     var parsed = parseDateLabel(g.dateLabel);
     els.adminDate.value = parsed ? parsed.date : '';
-    els.adminTime.value = (parsed && parsed.time) ? parsed.time : '';
+    els.adminTime.value = (parsed && parsed.time && !(g.week >= 7 && !g.timeConfirmed)) ? parsed.time : '';
     els.adminVenue.value = parsed ? parsed.venue : '';
     els.adminScoreA.value = (g.status === 'final' && typeof g.scoreA === 'number') ? g.scoreA : '';
     els.adminScoreB.value = (g.status === 'final' && typeof g.scoreB === 'number') ? g.scoreB : '';
