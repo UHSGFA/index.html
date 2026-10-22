@@ -593,6 +593,9 @@
   .br-half { display: flex; flex: none; }
   .br-col { display: flex; flex-direction: column; width: 156px; padding: 0 12px; }
   .br-fin { width: 190px; }
+  /* First Round card lines up with the top Round of 16 game (Seed 1 / Seed 2) it feeds */
+  .br-r1 .br-body { justify-content: flex-start; }
+  .br-r1 .br-pair { flex: 0 0 25%; justify-content: center; }
   .br-body { flex: 1; display: flex; flex-direction: column; justify-content: space-around; }
   .br-pair { flex: 1; display: flex; flex-direction: column; justify-content: space-around; position: relative; }
   .br-slot { position: relative; }
