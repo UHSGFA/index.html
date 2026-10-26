@@ -683,18 +683,19 @@
     text-overflow: ellipsis;
   }
   .bracket-seed-num {
-    flex: 0 0 22px;
-    height: 22px;
-    line-height: 22px;
+    flex: 0 0 28px;
+    height: 28px;
+    line-height: 28px;
     text-align: center;
     border-radius: 50%;
-    background: var(--red-bright);
+    background: #1f1d1a;
     color: #fff;
     font-family: var(--font-display);
-    font-weight: 700;
-    font-size: 11px;
+    font-weight: 800;
+    font-size: 15px;
+    box-shadow: 0 0 0 2px var(--red-bright);
   }
-  .bracket-seed-num.empty { background: transparent; }
+  .bracket-seed-num.empty { background: transparent; box-shadow: none; }
   .bracket-team-name { flex: 1; }
   .bracket-seed-tag {
     font-size: 9.5px;
@@ -1742,7 +1743,7 @@
   <button class="site-tab" data-tab="standings">Standings</button>
   <button class="site-tab" data-tab="stats">Stats</button>
   <button class="site-tab" data-tab="calendar">Calendar</button>
-  <button class="site-tab" data-tab="bracket">Projected Playoffs</button>
+  <button class="site-tab" data-tab="bracket">Playoffs 2026</button>
   <button class="site-tab" id="tabMyTeamBtn" data-tab="myteam" style="display:none;">My Team</button>
   <button class="site-tab" id="tabAdminBtn" data-tab="admin" style="display:none;">Admin</button>
 </nav>
@@ -1854,8 +1855,7 @@
 
 <section class="tab-panel" id="panelBracket" data-panel="bracket">
   <div class="wrap info-list-page">
-    <div class="proj-banner">PROJECTED PLAYOFFS, NOT THE REAL PLAYOFFS YET</div>
-    <h2>Projected Playoffs</h2>
+        <h2>Playoffs 2026</h2>
     <p class="teams-sub" style="display:block; margin-bottom:18px;">Seed numbers are filled in live from the current Standings, so this updates automatically every time a score is posted.</p>
     <div class="bracket-wrap" id="bracketWrap"></div>
   </div>
