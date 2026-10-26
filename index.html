@@ -2754,6 +2754,44 @@
       els.bracketWrap.appendChild(empty);
       return;
     }
+    // Round 1 / Round of 16 matchups always follow the current standings until the
+    // game is final: swap any hand-typed team names back to "Seed N" placeholders.
+    var SEED_MATCHUPS = {
+      g55: ['Seed 15', 'Seed 18'], g56: ['Seed 16', 'Seed 17'],
+      g57: ['Seed 4', 'Seed 13'], g58: ['Seed 3', 'Seed 14'], g59: ['Seed 6', 'Seed 11'],
+      g62: ['Seed 5', 'Seed 12'], g63: ['Seed 7', 'Seed 10'], g64: ['Seed 8', 'Seed 9']
+    };
+    function seedRankOf(team) {
+      for (var i = 0; i < standings.length; i++) if (standings[i].team === team) return i + 1;
+      return null;
+    }
+    function winnerSeed(id) {
+      var g = games[id];
+      if (!g || g.status !== 'final') return null;
+      var m = SEED_MATCHUPS[id];
+      var winnerRaw = g.scoreA > g.scoreB ? m[0] : m[1];
+      return parseInt(winnerRaw.replace('Seed ', ''), 10);
+    }
+    var w1 = winnerSeed('g55'), w2 = winnerSeed('g56');
+    byWeek[7] = (byWeek[7] || []); byWeek[8] = (byWeek[8] || []);
+    [7, 8].forEach(function (wk) {
+      byWeek[wk] = byWeek[wk].map(function (g) {
+        if (g.status === 'final') return g;
+        var c = {}; Object.keys(g).forEach(function (k) { c[k] = g[k]; });
+        if (SEED_MATCHUPS[g.id]) { c.teamA = SEED_MATCHUPS[g.id][0]; c.teamB = SEED_MATCHUPS[g.id][1]; }
+        else if (g.id === 'g60' || g.id === 'g61') {
+          var base = g.id === 'g60' ? 'Seed 2' : 'Seed 1';
+          c.teamA = base;
+          if (w1 && w2) {
+            var hi = Math.min(w1, w2), lo = Math.max(w1, w2);
+            c.teamB = 'Seed ' + (g.id === 'g60' ? hi : lo);
+          } else {
+            c.teamB = g.id === 'g60' ? 'Highest Seed from 10/26' : 'Lowest Seed from 10/26';
+          }
+        }
+        return c;
+      });
+    });
     Object.keys(byWeek).forEach(function (w) {
       byWeek[w].sort(function (a, b) { var ka = bracketSortKey(a), kb = bracketSortKey(b); return ka < kb ? -1 : (ka > kb ? 1 : 0); });
     });
@@ -2767,20 +2805,35 @@
       while (right.length < perHalf) right.push(null);
       return { left: left, right: right };
     }
+    // Slot positions are tied to each game's original id, so a game stays put
+    // after an admin replaces "Seed N" with a real team name.
+    var R16_IDS = ['g61', 'g64', 'g62', 'g57', 'g60', 'g63', 'g59', 'g58'];
+    var R16_SEEDS = [1, 8, 5, 4, 2, 7, 6, 3];
     function splitSeeds(list) {
-      var LEFT = [1, 8, 5, 4], RIGHT = [2, 7, 6, 3];
-      var order = LEFT.concat(RIGHT);
-      var slots = order.map(function () { return null; });
+      var slots = R16_IDS.map(function () { return null; });
       var rest = [];
       list.forEach(function (g) {
-        var k = bracketSeedKey(g), pos = order.indexOf(k);
+        var pos = R16_IDS.indexOf(g.id);
+        if (pos < 0) pos = R16_SEEDS.indexOf(bracketSeedKey(g));
         if (pos > -1 && !slots[pos]) slots[pos] = g; else rest.push(g);
       });
       for (var i = 0; i < slots.length && rest.length; i++) if (!slots[i]) slots[i] = rest.shift();
       return { left: slots.slice(0, 4), right: slots.slice(4) };
     }
+    function splitById(list, leftIds, perHalf) {
+      var left = [], right = [], rest = [];
+      list.forEach(function (g) {
+        if (leftIds.indexOf(g.id) > -1) left.push(g);
+        else if (g.id && /^g\d+$/.test(g.id) && parseInt(g.id.slice(1), 10) <= 68) right.push(g);
+        else rest.push(g);
+      });
+      rest.forEach(function (g) { (left.length <= right.length ? left : right).push(g); });
+      while (left.length < perHalf) left.push(null);
+      while (right.length < perHalf) right.push(null);
+      return { left: left, right: right };
+    }
 
-    var r1 = splitSimple(byWeek[7] || [], 1);
+    var r1 = splitById(byWeek[7] || [], ['g55'], 1);
     var r16 = splitSeeds(byWeek[8] || []);
     var qf = splitSimple(byWeek[9] || [], 2);
     var sf = splitSimple(byWeek[10] || [], 1);
