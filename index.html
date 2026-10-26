@@ -589,10 +589,10 @@
     -webkit-overflow-scrolling: touch;
     padding: 4px 4px 16px;
   }
-  .br { display: flex; justify-content: center; min-width: 1660px; height: 860px; }
+  .br { display: flex; justify-content: center; min-width: 1800px; height: 860px; }
   .br-half { display: flex; flex: none; }
-  .br-col { display: flex; flex-direction: column; width: 156px; padding: 0 12px; }
-  .br-fin { width: 190px; }
+  .br-col { display: flex; flex-direction: column; width: 170px; padding: 0 12px; }
+  .br-fin { width: 200px; }
   /* First Round card lines up with the top Round of 16 game (Seed 1 / Seed 2) it feeds */
   .br-r1 .br-body { justify-content: flex-start; }
   .br-r1 .br-pair { flex: 0 0 25%; justify-content: center; }
@@ -682,6 +682,20 @@
     overflow: hidden;
     text-overflow: ellipsis;
   }
+  .bracket-seed-num {
+    flex: 0 0 22px;
+    height: 22px;
+    line-height: 22px;
+    text-align: center;
+    border-radius: 50%;
+    background: var(--red-bright);
+    color: #fff;
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 11px;
+  }
+  .bracket-seed-num.empty { background: transparent; }
+  .bracket-team-name { flex: 1; }
   .bracket-seed-tag {
     font-size: 9.5px;
     font-weight: 500;
@@ -2649,7 +2663,7 @@
     var idx = parseInt(m[1], 10) - 1;
     var row = standings[idx];
     if (!row) return { name: rawName, seedTag: null };
-    return { name: row.team, seedTag: 'Seed ' + m[1] + ' \u00b7 ' + row.w + '-' + row.l + ' (proj.)' };
+    return { name: row.team, seed: parseInt(m[1], 10), seedTag: row.w + '-' + row.l + (row.t_ ? '-' + row.t_ : '') };
   }
 
   // Bracket shows date + venue, but the time stays "Time TBD" until an admin
@@ -2690,7 +2704,12 @@
     function teamRowEl(proj, wins, score) {
       var row = document.createElement('div');
       row.className = 'bracket-team' + (wins ? ' winner' : '');
+      var seedNum = proj.seed || null;
+      if (!seedNum) {
+        for (var si = 0; si < standings.length; si++) if (standings[si].team === proj.name) { seedNum = si + 1; break; }
+      }
       row.innerHTML =
+        (seedNum ? '<span class="bracket-seed-num">' + seedNum + '</span>' : '<span class="bracket-seed-num empty"></span>') +
         '<span class="bracket-team-name">' + escapeHtml(proj.name) +
         (proj.seedTag ? '<span class="bracket-seed-tag">' + escapeHtml(proj.seedTag) + '</span>' : '') + '</span>' +
         (isFinal ? '<span class="bracket-team-score">' + score + '</span>' : '');
