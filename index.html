@@ -2882,10 +2882,29 @@
       return eff(g, a, b);
     });
     function feedPair(w1, w2, g) { return eff(g, w1, w2); }
+    // Keep each later-round game in the slot its feeder games point to (matched by
+    // team), so changing a game's date or time never moves it around the bracket.
+    function placeByFeeders(list, feederEff, n) {
+      var slots = []; for (var q = 0; q < n; q++) slots.push(null);
+      var leftover = [];
+      list.forEach(function (g) {
+        var at = -1;
+        for (var k = 0; k < n && at < 0; k++) {
+          var w1 = winnerOf(feederEff[k * 2]), w2 = winnerOf(feederEff[k * 2 + 1]);
+          var names = [resolveSeed(g.teamA), resolveSeed(g.teamB)];
+          if ((w1 && names.indexOf(w1) > -1) || (w2 && names.indexOf(w2) > -1)) at = k;
+        }
+        if (at > -1 && !slots[at]) slots[at] = g; else leftover.push(g);
+      });
+      for (var z = 0; z < n && leftover.length; z++) if (!slots[z]) slots[z] = leftover.shift();
+      return slots;
+    }
+    qf = placeByFeeders(qfList, effR16, 4);
     var effQF = qf.map(function (g, i) {
       var f1 = winnerOf(effR16[i * 2]), f2 = winnerOf(effR16[i * 2 + 1]);
       return (g || f1 || f2) ? feedPair(f1, f2, g) : null;
     });
+    sf = placeByFeeders(sfList, effQF, 2);
     var effSF = sf.map(function (g, i) {
       var f1 = winnerOf(effQF[i * 2]), f2 = winnerOf(effQF[i * 2 + 1]);
       return (g || f1 || f2) ? feedPair(f1, f2, g) : null;
