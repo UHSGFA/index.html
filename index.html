@@ -2128,6 +2128,14 @@
         </div>
       </div>
       <div class="stat-group">
+        <div class="stat-group-title">Field Goals</div>
+        <div class="stat-group-fields">
+          <div class="stat-mini2"><label>Att</label><input class="p-fgAtt" type="number" min="0" inputmode="numeric"></div>
+          <div class="stat-mini2"><label>Made</label><input class="p-fgMade" type="number" min="0" inputmode="numeric"></div>
+          <div class="stat-mini2"><label>Long (yds)</label><input class="p-fgLong" type="number" min="0" inputmode="numeric"></div>
+        </div>
+      </div>
+      <div class="stat-group">
         <div class="stat-group-title">Extra Pts</div>
         <div class="stat-group-fields">
           <div class="stat-mini2"><label>1-Pt</label><input class="p-pt1" type="number" min="0" inputmode="numeric"></div>
@@ -2160,8 +2168,17 @@
     { key: 'sacks',     line1: 'Defense',   line2: 'Sacks',       friendly: 'sacks' },
     { key: 'defTD',     line1: 'Defense',   line2: 'TD',          friendly: 'def TD' },
     { key: 'pt1',       line1: '1-Pt',      line2: 'Conv',        friendly: '1-pt conv' },
-    { key: 'pt2',       line1: '2-Pt',      line2: 'Conv',        friendly: '2-pt conv' }
+    { key: 'pt2',       line1: '2-Pt',      line2: 'Conv',        friendly: '2-pt conv' },
+    { key: 'fgAtt',     line1: 'FG',        line2: 'Attempts',    friendly: 'fg att' },
+    { key: 'fgMade',    line1: 'FG',        line2: 'Made',        friendly: 'fg made' },
+    { key: 'fgLong',    line1: 'FG',        line2: 'Long (yds)',  friendly: 'fg long' }
   ];
+  // Stats that combine by taking the best (max) instead of adding up.
+  var MAX_STAT_KEYS = { fgLong: true };
+  function combineStat(current, key, add) {
+    add = add || 0;
+    return MAX_STAT_KEYS[key] ? Math.max(current || 0, add) : (current || 0) + add;
+  }
   var STAT_FIELD_KEYS = STAT_FIELD_DEFS.map(function (f) { return f.key; });
 
   // Generic sortable stat table. leadColumns describes the non-stat columns
@@ -2881,7 +2898,12 @@
       }
       return eff(g, a, b);
     });
-    function feedPair(w1, w2, g) { return eff(g, w1, w2); }
+    function feedPair(w1, w2, g) {
+      // A saved game keeps its own team order (its scores belong to that order).
+      if (g && g.status === 'final') return eff(g);
+      if (g && w1 && w2 && g.teamA === w2 && g.teamB === w1) return eff(g);
+      return eff(g, w1, w2);
+    }
     // Keep each later-round game in the slot its feeder games point to (matched by
     // team), so changing a game's date or time never moves it around the bracket.
     function placeByFeeders(list, feederEff, n) {
@@ -2954,7 +2976,9 @@
     { key: 'recYds',  label: 'Rec Yds' },
     { key: 'recTD',   label: 'Rec TD' },
     { key: 'sacks',   label: 'Sacks' },
-    { key: 'flagPulls', label: 'Flag Pulls' }
+    { key: 'flagPulls', label: 'Flag Pulls' },
+    { key: 'fgMade', label: 'FG Made' },
+    { key: 'fgLong', label: 'Longest FG (yds)' }
   ];
 
   function computeStandings() {
@@ -3010,7 +3034,7 @@
           byPlayer[key] = { name: p.name, position: p.position || '', number: p.number || '' };
           STAT_FIELD_KEYS.forEach(function (k) { byPlayer[key][k] = 0; });
         }
-        STAT_FIELD_KEYS.forEach(function (k) { byPlayer[key][k] += p[k] || 0; });
+        STAT_FIELD_KEYS.forEach(function (k) { byPlayer[key][k] = combineStat(byPlayer[key][k], k, p[k]); });
         if (p.position) byPlayer[key].position = p.position;
         if (p.number) byPlayer[key].number = p.number;
       });
@@ -3034,7 +3058,7 @@
         stats.forEach(function (p) {
           var key = team + '::' + p.name;
           if (!byPlayer[key]) byPlayer[key] = { name: p.name, team: team, position: p.position || '', value: 0 };
-          byPlayer[key].value += p[catKey] || 0;
+          byPlayer[key].value = combineStat(byPlayer[key].value, catKey, p[catKey]);
           if (p.position) byPlayer[key].position = p.position;
         });
       });
@@ -3200,7 +3224,7 @@
             byPlayer[key] = { name: p.name, team: team, position: p.position || '', number: p.number || '' };
             STAT_FIELD_KEYS.forEach(function (k) { byPlayer[key][k] = 0; });
           }
-          STAT_FIELD_KEYS.forEach(function (k) { byPlayer[key][k] += p[k] || 0; });
+          STAT_FIELD_KEYS.forEach(function (k) { byPlayer[key][k] = combineStat(byPlayer[key][k], k, p[k]); });
           if (p.position) byPlayer[key].position = p.position;
           if (p.number) byPlayer[key].number = p.number;
         });
@@ -3232,7 +3256,7 @@
       var totals = { team: team };
       STAT_FIELD_KEYS.forEach(function (k) { totals[k] = 0; });
       teamPlayerStats(team).forEach(function (p) {
-        STAT_FIELD_KEYS.forEach(function (k) { totals[k] += p[k] || 0; });
+        STAT_FIELD_KEYS.forEach(function (k) { totals[k] = combineStat(totals[k], k, p[k]); });
       });
       return totals;
     }).sort(function (a, b) {
@@ -3633,6 +3657,11 @@
       { key: 'sacks', label: 'Sck', full: 'Sacks' },
       { key: 'defTD', label: 'TD', full: 'Defensive touchdowns' }
     ]},
+    { label: 'Kicking', fields: [
+      { key: 'fgAtt', label: 'FGA', full: 'Field goal attempts' },
+      { key: 'fgMade', label: 'FGM', full: 'Field goals made' },
+      { key: 'fgLong', label: 'Long', full: 'Longest field goal (yards)' }
+    ]},
     { label: 'Pts', fields: [
       { key: 'pt1', label: '1-pt', full: '1-point conversions' },
       { key: 'pt2', label: '2-pt', full: '2-point conversions' }
@@ -3696,7 +3725,7 @@
         (p.position ? ' <span class="sp-pos">' + escapeHtml(p.position.toUpperCase()) + '</span>' : '');
       html += '<tr><td class="gs-name">' + nameHtml + '</td>' +
         valueCells(function (k) {
-          totals[k] = (totals[k] || 0) + (p[k] || 0);
+          totals[k] = combineStat(totals[k], k, p[k]);
           return p[k] || 0;
         }) + '</tr>';
     });
