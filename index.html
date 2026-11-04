@@ -589,6 +589,16 @@
     -webkit-overflow-scrolling: touch;
     padding: 4px 4px 16px;
   }
+  .bracket-disclaimer {
+    background: #fff7e0;
+    border: 1px solid #e8cf85;
+    color: #5b4a12;
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 13px;
+    line-height: 1.4;
+    margin: 0 0 14px;
+  }
   .bracket-admin-bar { padding-left: 16px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; position: sticky; left: 0; max-width: 100vw; font-size: 13px; color: var(--text-dim); margin-bottom: 12px; }
   .bracket-admin-btn { font: inherit; font-size: 11px; font-weight: 700; color: #fff; background: var(--red-bright); border: 0; border-radius: 6px; padding: 5px 10px; cursor: pointer; }
   .bracket-match > .bracket-admin-btn { display: block; width: 100%; border-radius: 0; padding: 6px; }
@@ -1859,6 +1869,7 @@
 <section class="tab-panel" id="panelBracket" data-panel="bracket">
   <div class="wrap info-list-page">
         <h2>Playoffs 2026</h2>
+    <div class="bracket-disclaimer">Playoff bracket may be inaccurate due to user error from a salesman whos trying to help create a website. If there are any inaccuracies check the scoreboard.</div>
     <p class="teams-sub" style="display:block; margin-bottom:18px;">Seeds are set by the final regular-season standings (Weeks 1–6). Winners advance automatically when a final score is entered.</p>
     <div class="bracket-wrap" id="bracketWrap"></div>
   </div>
