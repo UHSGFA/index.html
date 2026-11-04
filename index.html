@@ -2534,6 +2534,7 @@
 
   var recordMap = {};
   function render() {
+    renderBracket();   // refreshes bracketTeamMap before the Scoreboard is drawn
     recordMap = {};
     computeStandings().forEach(function (r) {
       recordMap[r.team] = r.w + '-' + r.l + (r.t_ ? ('-' + r.t_) : '');
@@ -2818,7 +2819,9 @@
     return col;
   }
 
+  var bracketTeamMap = {};   // gameId -> teams after winners advance (used by the Scoreboard too)
   function renderBracket() {
+    bracketTeamMap = {};
     if (!els.bracketWrap) return;
     els.bracketWrap.innerHTML = '';
     var standings = computeStandings();   // final regular-season standings = seeds
@@ -2952,6 +2955,10 @@
       var f1 = winnerOf(effSF[0]), f2 = winnerOf(effSF[1]);
       return feedPair(f1, f2, fin);
     })();
+
+    [effR1L, effR1R].concat(effR16, effQF, effSF, [effFin]).forEach(function (e) {
+      if (e && e.id && e.status !== 'final') bracketTeamMap[e.id] = { teamA: e.teamA, teamB: e.teamB };
+    });
 
     function ms(list, wk) { return list.map(function (g) { return buildBracketMatch(g, standings, wk); }); }
 
@@ -3566,8 +3573,13 @@
     var matchup = document.createElement('div');
     matchup.className = 'matchup';
 
-    matchup.appendChild(teamRow(g.teamA, isFinal ? g.scoreA : null, aWins, bWins));
-    matchup.appendChild(teamRow(g.teamB, isFinal ? g.scoreB : null, bWins, aWins));
+    var shownA = g.teamA, shownB = g.teamB;
+    if (!isFinal && g.week >= 7 && bracketTeamMap[g.id]) {
+      shownA = bracketTeamMap[g.id].teamA || shownA;
+      shownB = bracketTeamMap[g.id].teamB || shownB;
+    }
+    matchup.appendChild(teamRow(shownA, isFinal ? g.scoreA : null, aWins, bWins));
+    matchup.appendChild(teamRow(shownB, isFinal ? g.scoreB : null, bWins, aWins));
 
     card.appendChild(matchup);
 
