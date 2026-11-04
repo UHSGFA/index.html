@@ -2899,10 +2899,16 @@
       return eff(g, a, b);
     });
     function feedPair(w1, w2, g) {
-      // A saved game keeps its own team order (its scores belong to that order).
+      // Never reorder a saved game: teams you (or the form) saved keep their side.
+      // Winners from the previous round only fill sides that are still empty/TBD.
       if (g && g.status === 'final') return eff(g);
-      if (g && w1 && w2 && g.teamA === w2 && g.teamB === w1) return eff(g);
-      return eff(g, w1, w2);
+      var sa = g && !isPlaceholder(g.teamA) ? g.teamA : null;
+      var sb = g && !isPlaceholder(g.teamB) ? g.teamB : null;
+      if (sa && sb) return eff(g);
+      var pool = [w1, w2].filter(function (w) { return w && w !== sa && w !== sb; });
+      if (!sa) sa = pool.shift() || null;
+      if (!sb) sb = pool.shift() || null;
+      return eff(g, sa, sb);
     }
     // Keep each later-round game in the slot its feeder games point to (matched by
     // team), so changing a game's date or time never moves it around the bracket.
